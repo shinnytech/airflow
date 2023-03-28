@@ -1065,7 +1065,7 @@ class DagFileProcessorManager(LoggingMixin):
                 except FileNotFoundError:
                     self.log.warning("Skipping processing of missing file: %s", file_path)
                     continue
-                file_modified_time = timezone.make_aware(datetime.fromtimestamp(files_with_mtime[file_path]))
+                file_modified_time = datetime.fromtimestamp(files_with_mtime[file_path], tz=timezone.utc)
             else:
                 file_paths.append(file_path)
                 file_modified_time = None
