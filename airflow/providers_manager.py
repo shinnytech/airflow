@@ -215,6 +215,14 @@ class TriggerInfo(NamedTuple):
     integration_name: str
 
 
+class PluginInfo(NamedTuple):
+    """Plugin class, name and provider it comes from."""
+
+    name: str
+    plugin_class: str
+    provider_name: str
+
+
 class HookInfo(NamedTuple):
     """Hook information."""
 
@@ -407,6 +415,8 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._customized_form_fields_schema_validator = (
             _create_customized_form_field_behaviours_schema_validator()
         )
+        # Set of plugins contained in providers
+        self._plugins_set: set[PluginInfo] = set()
 
     @provider_info_cache("list")
     def initialize_providers_list(self):
@@ -488,6 +498,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers API auth_backends information."""
         self.initialize_providers_list()
         self._discover_auth_backends()
+
+    @provider_info_cache("plugins")
+    def initialize_providers_plugins(self):
+        self.initialize_providers_list()
+        self._discover_plugins()
 
     def _discover_all_providers_from_packages(self) -> None:
         """
@@ -991,6 +1006,21 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             if provider.data.get("config"):
                 self._provider_configs[provider_package] = provider.data.get("config")
 
+    def _discover_plugins(self) -> None:
+        """Retrieve all plugins defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("plugins"):
+                for plugin_dict in provider.data["plugins"]:
+                    log.warning(plugin_dict)
+                    if _sanity_check(provider_package, plugin_dict["plugin-class"], provider):
+                        self._plugins_set.add(
+                            PluginInfo(
+                                name=plugin_dict["name"],
+                                plugin_class=plugin_dict["plugin-class"],
+                                provider_name=provider_package,
+                            )
+                        )
+
     @provider_info_cache("triggers")
     def initialize_providers_triggers(self):
         """Initialization of providers triggers."""
@@ -1028,6 +1058,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_hooks()
         # When we return hooks here it will only be used to retrieve hook information
         return self._hooks_lazy_dict
+
+    @property
+    def plugins(self) -> list[PluginInfo]:
+        """Returns information about plugins available in providers."""
+        self.initialize_providers_plugins()
+        return sorted(self._plugins_set, key=lambda x: x.plugin_class)
 
     @property
     def taskflow_decorators(self) -> dict[str, TaskDecorator]:
