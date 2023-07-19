@@ -1,0 +1,50 @@
+name: Shinny-build
+
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.7'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools wheel twine build
+
+    - name: Build frontend
+      run: |
+        python setup.py compile_assets
+
+    - name: Build wheel
+      run: |
+        python3 -m build
+
+    - name: Setup oss dist path on tag
+      if: startsWith(github.event.ref, 'refs/tags')
+      run: |
+        echo "DEST_DIR=$(echo ${GITHUB_REF##*/})/" >> $GITHUB_ENV
+
+    - name: Setup oss dist path on commit
+      if: startsWith(github.event.ref, 'refs/tags') != true
+      run: |
+        echo "DEST_DIR=$(echo ${GITHUB_REF##*/})/$(echo ${GITHUB_SHA:0:7})/" >> $GITHUB_ENV
+
+    - name: Setup ossutil
+      uses: manyuanrong/setup-ossutil@v2.0
+      with:
+        endpoint: "oss-accelerate.aliyuncs.com"
+        access-key-id: ${{ secrets.OSS_ACCESS_KEY }}
+        access-key-secret: ${{ secrets.OSS_SECRET_KEY }}
+
+    - name: Upload to oss
+      run: ossutil cp -rf dist oss://shinny-cd/airflow/${DEST_DIR}
+
