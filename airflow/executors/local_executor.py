@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 import os
+import pathlib
 import subprocess
 from abc import abstractmethod
 from multiprocessing import Manager, Process
@@ -91,6 +92,25 @@ class LocalWorkerBase(Process, LoggingMixin):
 
     def _execute_work_in_subprocess(self, command: CommandType) -> str:
         try:
+            # shinny-airflow 需要以dag组whl文件为最小单元创建单独的venv环境
+            # 需要使用非sqlite数据库并设置 [core]/execute_tasks_new_python_interpreter = True
+            # 首先，在运行时需要设置不同的PATH环境变量以指向各自venv/bin下的airflow wrapper
+            # command以airflow开头，因此更换PATH可以指向不同的venv
+            # 其次，dag import需要通过consul watcher触发定时执行，
+            # 设置 [scheduler]/standalone_dag_processor = True
+            # import 命令: airflow dag-processor -S /path/to/specific/dags -n 1
+            if "--subdir" in command:
+                dag_file_name = pathlib.Path(command[command.index("--subdir")+1]).name
+                potential_venv_name = dag_file_name.split(".")[0]
+                venv_dir = pathlib.Path(os.getenv("CDK_AIRFLOW_VENV_BASE_DIR", "/tmp")) / potential_venv_name
+                if venv_dir.is_dir():
+                    self.log.debug(f"{dag_file_name} will be execute using interpreter of venv: {venv_dir}")
+                    # 准备子进程的运行环境，将venv排在第一个并将系统bin目录包括在内
+                    process_env = os.environ.copy()
+                    process_env["PATH"] = f"{str(venv_dir / 'bin')}:{process_env['PATH']}"
+                    subprocess.check_call(command, close_fds=True, env=process_env)
+                    return State.SUCCESS
+
             subprocess.check_call(command, close_fds=True)
             return State.SUCCESS
         except subprocess.CalledProcessError as e:
