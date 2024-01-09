@@ -35,6 +35,7 @@ from queue import Empty, Queue
 from typing import Any, Optional, Tuple
 
 from setproctitle import getproctitle, setproctitle
+from shinny_filelock import flocked
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -107,12 +108,13 @@ class LocalWorkerBase(Process, LoggingMixin):
                 venv_name = dag_file_name.name.rsplit("-", 1)[0]
                 venv_dir = pathlib.Path(os.getenv("CDK_AIRFLOW_VENV_BASE_DIR")) / venv_name
                 if venv_dir.is_dir():
-                    self.log.info(f"{dag_file_name} will be execute using interpreter of venv: {venv_dir}")
-                    # 准备子进程的运行环境，将venv排在第一个并将系统bin目录包括在内
-                    process_env = os.environ.copy()
-                    process_env["PATH"] = f"{str(venv_dir / 'bin')}:{process_env['PATH']}"
-                    subprocess.check_call(command, close_fds=True, env=process_env)
-                    return State.SUCCESS
+                    with flocked(f"/run/lock/{venv_name}.lock", create_file=True, blocking=False):
+                        self.log.info(f"{dag_file_name} will be execute using interpreter of venv: {venv_dir}")
+                        # 准备子进程的运行环境，将venv排在第一个并将系统bin目录包括在内
+                        process_env = os.environ.copy()
+                        process_env["PATH"] = f"{str(venv_dir / 'bin')}:{process_env['PATH']}"
+                        subprocess.check_call(command, close_fds=True, env=process_env)
+                        return State.SUCCESS
 
             subprocess.check_call(command, close_fds=True)
             return State.SUCCESS
