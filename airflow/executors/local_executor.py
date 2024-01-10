@@ -99,7 +99,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             # 需要使用非sqlite数据库并设置 [core]/execute_tasks_new_python_interpreter = True
             # 首先，在运行时需要设置不同的PATH环境变量以指向各自venv/bin下的airflow wrapper
             # command以airflow开头，因此更换PATH可以指向不同的venv
-            # 其次，dag import需要通过consul watcher触发定时执行，
+            # 其次，dag import需要通过crontab和consul watch触发执行，
             # 设置 [scheduler]/standalone_dag_processor = True
             # import 命令: airflow dag-processor -S /path/to/specific/dags -n 1
             if "--subdir" in command and "CDK_AIRFLOW_VENV_BASE_DIR" in os.environ:
