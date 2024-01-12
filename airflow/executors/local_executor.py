@@ -108,7 +108,9 @@ class LocalWorkerBase(Process, LoggingMixin):
                 venv_name = dag_file_name.name.rsplit("-", 1)[0]
                 venv_dir = pathlib.Path(os.getenv("CDK_AIRFLOW_VENV_BASE_DIR")) / venv_name
                 if venv_dir.is_dir():
-                    with flocked(f"/run/lock/{venv_name}.lock", create_file=True, blocking=False):
+                    # airflow运行时需要读取文件，因此加上读锁。而且存在长时间任务会有多个实例同时运行的情况，读锁不会阻塞其他任务运行
+                    # 因此如果任务耗时较长而开发需要更新dag，开发需要手动停止schedule，然后等待正在运行的任务完成后更新dag
+                    with flocked(f"/run/lock/{venv_name}.lock", create_file=True, blocking=False, shared=True):
                         self.log.info(f"{dag_file_name} will be execute using interpreter of venv: {venv_dir}")
                         # 准备子进程的运行环境，将venv排在第一个并将系统bin目录包括在内
                         process_env = os.environ.copy()
