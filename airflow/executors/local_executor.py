@@ -123,6 +123,10 @@ class LocalWorkerBase(Process, LoggingMixin):
         except subprocess.CalledProcessError as e:
             self.log.error("Failed to execute task %s.", str(e))
             return State.FAILED
+        except BlockingIOError as e:
+            # 获取锁失败，说明有正在删除venv，直接返回失败
+            self.log.error("Failed to acquire lock %s.", str(e))
+            return State.FAILED
 
     def _execute_work_in_fork(self, command: CommandType) -> str:
         pid = os.fork()
