@@ -110,8 +110,9 @@ class LocalWorkerBase(Process, LoggingMixin):
                 if venv_dir.is_dir():
                     # airflow运行时需要读取文件，因此加上读锁。而且存在长时间任务会有多个实例同时运行的情况，读锁不会阻塞其他任务运行
                     # 因此如果任务耗时较长而开发需要更新dag，开发需要手动停止schedule，然后等待正在运行的任务完成后更新dag
-                    with flocked(f"/run/lock/{venv_name}.lock", create_file=True, blocking=False, shared=True):
+                    with flocked(f"/run/lock/airflow-dag-{venv_name}.lock", create_file=True, blocking=False, shared=True):
                         self.log.info(f"{dag_file_name} will be execute using interpreter of venv: {venv_dir}")
+                        # 如果 scheduler 决定执行 _execute_work_in_subprocess 之后, 在 flock venv 锁之前 venv 被删除, 则这里会运行 subprocess 失败
                         # 准备子进程的运行环境，将venv排在第一个并将系统bin目录包括在内
                         process_env = os.environ.copy()
                         process_env["PATH"] = f"{str(venv_dir / 'bin')}:{process_env['PATH']}"
