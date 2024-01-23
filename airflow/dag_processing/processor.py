@@ -192,6 +192,14 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         start_method = self._get_multiprocessing_start_method()
         context = multiprocessing.get_context(start_method)
 
+        venv_name = os.path.basename(self.file_path).rsplit("-", 1)[0]
+        venv_path = os.path.join(os.getenv("CDK_AIRFLOW_VENV_BASE_DIR"), venv_name)
+        if os.path.exists(venv_path):
+            # 如果venv存在则表明此dag是通过cdk部署的，需要使用对应的venv进行dag的预处理
+            self.log.info("Preprocessing %s Using venv %s", self.file_path, venv_path)
+            executable = os.path.join(venv_path, "bin", "python")
+            context.set_executable(executable)
+
         _parent_channel, _child_channel = context.Pipe(duplex=False)
         process = context.Process(
             target=type(self)._run_file_processor,
