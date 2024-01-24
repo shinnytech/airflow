@@ -3222,6 +3222,9 @@ class DagModel(Base):
         dag_models = session.query(cls).all()
         for dag_model in dag_models:
             if dag_model.fileloc is not None:
+                if os.path.exists(dag_model.fileloc) and os.path.isfile(dag_model.fileloc):
+                    # cdk将不同venv的所有dag放在同一个目录下，所以如果dag地址是一个文件且文件仍旧存在，则认为该dag仍旧有效
+                    continue
                 if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
                     dag_model.is_active = False
             else:
