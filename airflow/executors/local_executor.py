@@ -38,6 +38,7 @@ from setproctitle import getproctitle, setproctitle
 from shinny_filelock import flocked
 
 from airflow import settings
+from airflow.configuration import get_airflow_home
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, PARALLELISM, BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstanceKey, TaskInstanceStateType
@@ -102,11 +103,11 @@ class LocalWorkerBase(Process, LoggingMixin):
             # 其次，dag import需要通过crontab和consul watch触发执行，
             # 设置 [scheduler]/standalone_dag_processor = True
             # import 命令: airflow dag-processor -S /path/to/specific/dags -n 1
-            if "--subdir" in command and "CDK_AIRFLOW_VENV_BASE_DIR" in os.environ:
+            if "--subdir" in command:
                 dag_file_name = pathlib.Path(command[command.index("--subdir") + 1])
                 # otg-sim-update_mdreal_cont_info.py -> otg-sim
                 venv_name = dag_file_name.name.rsplit("-", 1)[0]
-                venv_dir = pathlib.Path(os.getenv("CDK_AIRFLOW_VENV_BASE_DIR")) / venv_name
+                venv_dir = pathlib.Path(get_airflow_home()) / "cdk-venv" / venv_name
                 if venv_dir.is_dir():
                     # airflow运行时需要读取文件，因此加上读锁。而且存在长时间任务会有多个实例同时运行的情况，读锁不会阻塞其他任务运行
                     # 因此如果任务耗时较长而开发需要更新dag，开发需要手动停止schedule，然后等待正在运行的任务完成后更新dag
