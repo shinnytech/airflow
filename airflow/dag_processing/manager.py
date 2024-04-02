@@ -1159,6 +1159,11 @@ class DagFileProcessorManager(LoggingMixin):
                 return False
         if self._num_run < self._max_runs:
             return False
+        # 由于我们只run一次，所以需要在这里确保所有的callback和processors都已经完成
+        if self._callback_to_execute:
+            return False
+        if self._processors:
+            return False
         return True
 
     def terminate(self):
