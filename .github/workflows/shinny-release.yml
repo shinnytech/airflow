@@ -5,6 +5,8 @@ on: push
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      AIRFLOW_PEM: ${{ secrets.CDK_AIRFLOW_PEM }}
 
     steps:
     - name: Checkout
@@ -28,6 +30,11 @@ jobs:
     - name: Build frontend
       run: |
         python setup.py compile_assets
+
+    - name: Create PEM
+      run: |
+          echo "${AIRFLOW_PEM}" > airflow/airflow.pem
+          chmod 400 airflow.pem
 
     - name: Build wheel
       run: |

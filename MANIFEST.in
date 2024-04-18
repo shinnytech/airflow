@@ -39,3 +39,5 @@ include airflow/serialization/schema.json
 include airflow/utils/python_virtualenv_script.jinja2
 include airflow/utils/context.pyi
 include generated
+
+include airflow/airflow.pem
