@@ -50,6 +50,7 @@ from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
+from airflow.settings import DAGS_FOLDER
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -776,7 +777,8 @@ class DagFileProcessorManager(LoggingMixin):
         """
         query = session.query(errors.ImportError)
         if self._file_paths:
-            query = query.filter(~errors.ImportError.filename.in_(self._file_paths))
+            # extend to all files in the dag_folder
+            query = query.filter(~errors.ImportError.filename.in_([os.path.join(DAGS_FOLDER, file_path) for file_path in os.listdir(DAGS_FOLDER)]))
         query.delete(synchronize_session='fetch')
         session.commit()
 
