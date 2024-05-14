@@ -3033,10 +3033,10 @@ class DagModel(Base):
     # Timetable/Schedule Interval description
     timetable_description = Column(String(1000), nullable=True)
     # Tags for view filter
-    tags = relationship('DagTag', cascade='all, delete, delete-orphan', backref=backref('dag'))
+    tags = relationship('DagTag', cascade='all, delete, delete-orphan', backref=backref('dag'), lazy="joined")
     # Dag owner links for DAGs view
     dag_owner_links = relationship(
-        'DagOwnerAttributes', cascade='all, delete, delete-orphan', backref=backref('dag')
+        'DagOwnerAttributes', cascade='all, delete, delete-orphan', backref=backref('dag'), lazy="joined"
     )
 
     max_active_tasks = Column(Integer, nullable=False)
@@ -3061,16 +3061,18 @@ class DagModel(Base):
     )
 
     parent_dag = relationship(
-        "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
+        "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id], lazy="joined"
     )
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
         cascade='all, delete, delete-orphan',
+        lazy="joined"
     )
     schedule_datasets = association_proxy('schedule_dataset_references', 'dataset')
     task_outlet_dataset_references = relationship(
         "TaskOutletDatasetReference",
         cascade='all, delete, delete-orphan',
+        lazy="joined"
     )
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
@@ -3458,7 +3460,7 @@ if STATICA_HACK:  # pragma: no cover
 
     from airflow.models.serialized_dag import SerializedDagModel
 
-    DagModel.serialized_dag = relationship(SerializedDagModel)
+    DagModel.serialized_dag = relationship(SerializedDagModel, lazy="joined")
     """:sphinx-autoapi-skip:"""
 
 
