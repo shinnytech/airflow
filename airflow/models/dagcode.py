@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import logging
 import os
+import pathlib
 import struct
 from datetime import datetime
 from typing import Iterable
 
+from airflow.configuration import get_airflow_home
 from sqlalchemy import BigInteger, Column, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.sql.expression import literal
@@ -131,7 +133,9 @@ class DagCode(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
-        alive_fileloc_hashes = [cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
+        # 所有dag都存放在同一个文件夹下：
+        alive_dag_filelocs = (pathlib.Path(get_airflow_home()) / "dags").glob("**/*.py")
+        alive_fileloc_hashes = [cls.dag_fileloc_hash(str(fileloc)) for fileloc in alive_dag_filelocs]
 
         log.debug("Deleting code from %s table ", cls.__tablename__)
 
