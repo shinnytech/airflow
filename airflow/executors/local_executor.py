@@ -117,7 +117,8 @@ class LocalWorkerBase(Process, LoggingMixin):
                         # 准备子进程的运行环境，将venv排在第一个并将系统bin目录包括在内
                         process_env = os.environ.copy()
                         process_env["PATH"] = f"{str(venv_dir / 'bin')}:{process_env['PATH']}"
-                        subprocess.check_call(command, close_fds=True, env=process_env)
+                        # ensure real task process has lower nice 0 + 15 = 15
+                        subprocess.check_call(["nice", "-n", "15", "--"] + command, close_fds=True, env=process_env)
                         return State.SUCCESS
 
             subprocess.check_call(command, close_fds=True)
