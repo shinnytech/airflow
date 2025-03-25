@@ -1095,17 +1095,32 @@ class DagFileProcessorManager(LoggingMixin):
             random.Random(get_hostname()).shuffle(file_paths)
 
         files_paths_at_run_limit = [
-            file_path for file_path, stat in self._file_stats.items() if stat.run_count == self._max_runs
+            file_path for file_path, stat in self._file_stats.items() if stat.run_count >= self._max_runs
         ]
 
-        file_paths_to_exclude = set(file_paths_in_progress).union(
-            file_paths_recently_processed, files_paths_at_run_limit
-        )
+        # _fetch_callbacks 将 callback 从数据库取出之后删除了对应的数据库记录, 因此取出的 callback 一定要执行
+        # _add_callback_to_queue 将取出的 callback 同时加入到了 _callback_to_execute 和 _file_path_queue
+        # start_new_processes 如果发现 file_path 已经在执行中则会跳过, 因此不会处理刚加入的 callback
+        # 因此加入到 _file_path_queue 仅仅是 best effort, 只有当还没有同名文件任务时提高优先级
+        # 一旦被跳过需要等待所有任务执行完成后由下次 prepare_file_path_queue 再将其加入到 _file_path_queue
+        # 但是有可能因为 _file_process_interval 和 _max_runs 导致延迟或再也不会加入到 _file_path_queue 中
+        # 进而导致 max_runs_reached 永远在等待不会执行的 callback
+        # 因此这里始终都会将 _callback_to_execute queue 起来, 除非有同名文件任务正在执行
+        files_paths_to_queue = list(self._callback_to_execute.keys())
 
         # Do not convert the following list to set as set does not preserve the order
         # and we need to maintain the order of file_paths for `[scheduler] file_parsing_sort_mode`
+        for file_path in file_paths:
+            if file_path in files_paths_to_queue:
+                continue
+            elif file_path in file_paths_recently_processed:
+                continue
+            elif file_path in files_paths_at_run_limit:
+                continue
+            else:
+                files_paths_to_queue.append(file_path)
         files_paths_to_queue = [
-            file_path for file_path in file_paths if file_path not in file_paths_to_exclude
+            file_path for file_path in files_paths_to_queue if file_path not in file_paths_in_progress
         ]
 
         for file_path, processor in self._processors.items():
