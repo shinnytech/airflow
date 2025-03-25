@@ -1482,6 +1482,10 @@ class SchedulerJob(BaseJob):
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
 
+        # LocalTaskJob.state 是由 executor 维护的, 通过判断 subprocess 的返回码来设置成功或失败
+        # TI.state 是由 subprocess 在执行完用户代码后负责更新的
+        # 如果在 PythonOperator 中调用 os._exit(0) 会导致 subprocess 完成但 TI.state 还是 RUNNING 状态
+        # 即此处的 zombie
         with create_session() as session:
             zombies: list[tuple[TI, str, str]] = (
                 session.query(TI, DM.fileloc, DM.processor_subdir)
