@@ -129,4 +129,5 @@ __pre_exec_callbacks = []  # type: List[Callable]
 __post_exec_callbacks = []  # type: List[Callable]
 
 # By default, register default action log into pre-execution callback
-register_pre_exec_callback(default_action_log)
+# Since we use airflow from CDK programmatically, all cli call should be pre-configured
+# Remove cli log here to save db storage
